@@ -40,6 +40,46 @@ public class ImportService
 
     public record DuplicateCheckResult(List<string> Duplicates);
 
+    // ── MSDE Expected Calculation ─────────────────────────────────────────
+    /// <summary>
+    /// Calculates MSDE's VOExpectedTotal for an invoice using the confirmed formula:
+    ///   DailyRate = VOPromisedWeekly / 5
+    ///   MonthlyExpected = DailyRate × MonthBusinessDays
+    ///   Full invoice  → MonthlyExpected / 2
+    ///   Partial month → MonthlyExpected × (VoucherActiveBusinessDays / MonthBusinessDays)
+    /// </summary>
+    public static decimal CalculateVOExpected(
+        decimal voPromisedWeekly,
+        DateTime invoiceStart,
+        DateTime invoiceEnd,
+        DateTime voucherPeriodStart,
+        DateTime? voucherPeriodEnd,
+        int closureDays = 0)
+    {
+        decimal dailyRate = voPromisedWeekly / 5m;
+        int year = invoiceStart.Year;
+        int month = invoiceStart.Month;
+
+        int monthBizDays = NetworkDaysHelper.MonthBusinessDays(year, month, closureDays);
+        if (monthBizDays == 0) return 0;
+
+        decimal monthlyExpected = dailyRate * monthBizDays;
+
+        // Check if voucher covers the full invoice period
+        bool voucherCoversFullInvoice =
+            voucherPeriodStart <= invoiceStart &&
+            (!voucherPeriodEnd.HasValue || voucherPeriodEnd.Value >= invoiceEnd);
+
+        if (voucherCoversFullInvoice)
+            return monthlyExpected / 2m;
+
+        // Partial month — pro-rate by actual voucher business days in this month
+        int voucherBizDays = NetworkDaysHelper.VoucherBusinessDaysInMonth(
+            voucherPeriodStart, voucherPeriodEnd, year, month);
+
+        return monthlyExpected * ((decimal)voucherBizDays / monthBizDays);
+    }
+
     // ── Payment Validation ────────────────────────────────────────────────
     public async Task<List<string>> ValidatePaymentNamesAsync(List<PaymentRow> rows)
     {
@@ -132,12 +172,24 @@ public class ImportService
 
                 decimal dailyVORate = 0, dailyHHDCRate = 0;
                 decimal voExpected = 0, hhdcExpected = 0;
+
                 if (voucher != null)
                 {
                     dailyVORate = voucher.GetDailyVORateForDate(session.InvoiceStart);
                     dailyHHDCRate = voucher.GetDailyHHDCRateForDate(session.InvoiceStart);
-                    voExpected = daysBilled * dailyVORate;
-                    hhdcExpected = daysBilled * dailyHHDCRate;
+
+                    // Use confirmed MSDE formula
+                    voExpected = CalculateVOExpected(
+                        voucher.VOPromisedWeekly,
+                        session.InvoiceStart, session.InvoiceEnd,
+                        voucher.PeriodStart, voucher.TerminationDate ?? voucher.PeriodEnd,
+                        session.ClosureDays);
+
+                    hhdcExpected = CalculateVOExpected(
+                        voucher.HHDCChargeWeekly,
+                        session.InvoiceStart, session.InvoiceEnd,
+                        voucher.PeriodStart, voucher.TerminationDate ?? voucher.PeriodEnd,
+                        session.ClosureDays);
                 }
 
                 if (isUnresolved)
@@ -147,7 +199,6 @@ public class ImportService
                     if (child != null) child.HasUnresolved = true;
 
                     int childId = child?.ChildId ?? 0;
-                    // Raw SQL to bypass FK constraint when ChildId = 0
                     await DbRetryService.ExecuteAsync(() =>
                         _db.Database.ExecuteSqlRawAsync(
                             @"INSERT INTO Invoices
@@ -187,7 +238,8 @@ public class ImportService
                     PaymentDate = session.PaymentDate,
                     AbsenceDays = row.Absences, ClosureDays = session.ClosureDays,
                     DailyVORate = dailyVORate, DailyHHDCRate = dailyHHDCRate,
-                    DaysBilled = daysBilled, VOExpectedTotal = voExpected,
+                    DaysBilled = daysBilled,
+                    VOExpectedTotal = voExpected,
                     HHDCExpectedTotal = hhdcExpected,
                     MDExcelsAmount = row.MDExcels, ScholarshipAmount = row.Scholarship,
                     PaymentTotal = row.PaymentTotal,
@@ -219,7 +271,6 @@ public class ImportService
         for (int i = 0; i < rows.Count; i++)
         {
             var row = rows[i];
-            // New Voucher rows skip ownership check — voucher doesn't exist yet
             if (row.Reason.ToLower().Contains("new voucher")) continue;
             var match = await _nameMatcher.FindChildAsync(row.ChildNameMSDE, _locationId);
             if (match.Child == null) continue;
@@ -289,7 +340,6 @@ public class ImportService
                     unresolved++;
                     unresolvedDetails.Add($"Voucher {row.ScholarshipNumber} ({row.ChildNameMSDE})");
                     if (child != null) child.HasUnresolved = true;
-
                     _db.UnresolvedTrueUps.Add(new UnresolvedTrueUp
                     {
                         ImportSessionId = importSession.ImportSessionId,
