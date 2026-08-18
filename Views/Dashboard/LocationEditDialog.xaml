@@ -1,0 +1,29 @@
+<Window x:Class="HHDCTracker.Views.Dashboard.LocationEditDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Edit Location" Width="420" Height="280"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Icon="/app.ico" Background="#F2F3F4">
+    <StackPanel Margin="24">
+        <TextBlock x:Name="TitleText" FontSize="16" FontWeight="Bold"
+                   FontFamily="Segoe UI" Foreground="#1A5276" Margin="0,0,0,20"/>
+
+        <TextBlock Style="{StaticResource FieldLabel}" Text="Location Name"/>
+        <TextBox x:Name="TxtName" Padding="8,6" FontFamily="Segoe UI" FontSize="13"
+                 BorderBrush="#2E86C1" BorderThickness="1" Margin="0,0,0,12"/>
+
+        <TextBlock Style="{StaticResource FieldLabel}" Text="Address (optional)"/>
+        <TextBox x:Name="TxtAddress" Padding="8,6" FontFamily="Segoe UI" FontSize="13"
+                 BorderBrush="#2E86C1" BorderThickness="1" Margin="0,0,0,16"/>
+
+        <CheckBox x:Name="ChkActive" Content="Active"
+                  FontFamily="Segoe UI" FontSize="12" Margin="0,0,0,24"/>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Cancel" Padding="14,8" FontFamily="Segoe UI"
+                    FontSize="13" Margin="0,0,8,0" Click="Cancel_Click"/>
+            <Button Content="Save" Style="{StaticResource PrimaryButton}"
+                    Padding="14,8" Click="Save_Click"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

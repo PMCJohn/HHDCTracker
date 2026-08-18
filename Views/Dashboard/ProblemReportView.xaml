@@ -1,0 +1,170 @@
+<UserControl x:Class="HHDCTracker.Views.Dashboard.ProblemReportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#F2F3F4">
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="#922B21" Padding="24,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Text="Problem Report" Foreground="White"
+                               FontSize="18" FontWeight="Bold" FontFamily="Segoe UI"/>
+                    <TextBlock Text="All open issues across active vouchers at this location."
+                               Foreground="#F1948A" FontSize="12" FontFamily="Segoe UI"
+                               Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                    <Button Content="🔄  Refresh" Style="{StaticResource PrimaryButton}"
+                            Padding="14,8" Click="Refresh_Click"/>
+                    <TextBlock x:Name="LastRefreshText" Foreground="#F1948A"
+                               FontSize="10" FontFamily="Segoe UI"
+                               HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <TabControl Background="Transparent" BorderThickness="0" Padding="0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontFamily" Value="Segoe UI"/>
+                    <Setter Property="FontSize" Value="13"/>
+                    <Setter Property="Padding" Value="16,8"/>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- Underpayments -->
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Underpayments" VerticalAlignment="Center"/>
+                        <Border x:Name="UnderpayBadge" Background="{StaticResource RedAlertBrush}"
+                                CornerRadius="10" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="UnderpayCount" Text="0" Foreground="White"
+                                       FontSize="11" FontWeight="Bold" FontFamily="Segoe UI"/>
+                        </Border>
+                    </StackPanel>
+                </TabItem.Header>
+                <DataGrid x:Name="UnderpayGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                          GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                          Background="White" AlternatingRowBackground="#FEF9E7"
+                          BorderThickness="0" FontFamily="Segoe UI" FontSize="12" Margin="16,12">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Child" Binding="{Binding Child.FullName}" Width="160"/>
+                        <DataGridTextColumn Header="Voucher #" Binding="{Binding Voucher.VoucherNumber}" Width="110"/>
+                        <DataGridTextColumn Header="Invoice #" Binding="{Binding Invoice.InvoiceNumber}" Width="100"/>
+                        <DataGridTextColumn Header="Date" Binding="{Binding Invoice.InvoiceStart, StringFormat='MM/dd/yyyy'}" Width="90"/>
+                        <DataGridTextColumn Header="Issue" Binding="{Binding IssueType}" Width="140"/>
+                        <DataGridTextColumn Header="Shortfall" Binding="{Binding VOShortfall, StringFormat='${0:N2}'}" Width="90"/>
+                        <DataGridTextColumn Header="TU Applied" Binding="{Binding TrueUpApplied, StringFormat='${0:N2}'}" Width="90"/>
+                        <DataGridTextColumn Header="Manual" Binding="{Binding ManualApplied, StringFormat='${0:N2}'}" Width="80"/>
+                        <DataGridTextColumn Header="Remaining" Binding="{Binding Remaining, StringFormat='${0:N2}'}" Width="90"/>
+                        <DataGridTextColumn Header="Resolved" Binding="{Binding IsResolved}" Width="75"/>
+                    </DataGrid.Columns>
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding IssueType}" Value="MISSED PAYMENT">
+                                    <Setter Property="Background" Value="#FADBD8"/>
+                                </DataTrigger>
+                                <DataTrigger Binding="{Binding IssueType}" Value="PARTIAL TRUE-UP">
+                                    <Setter Property="Background" Value="#FDEBD0"/>
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
+                </DataGrid>
+            </TabItem>
+
+            <!-- Payment Gaps -->
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Payment Gaps" VerticalAlignment="Center"/>
+                        <Border x:Name="GapBadge" Background="{StaticResource AccentOrangeBrush}"
+                                CornerRadius="10" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="GapCount" Text="0" Foreground="White"
+                                       FontSize="11" FontWeight="Bold" FontFamily="Segoe UI"/>
+                        </Border>
+                    </StackPanel>
+                </TabItem.Header>
+                <DataGrid x:Name="GapGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                          GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                          Background="White" AlternatingRowBackground="#FDEBD0"
+                          BorderThickness="0" FontFamily="Segoe UI" FontSize="12" Margin="16,12">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Child" Binding="{Binding Child.FullName}" Width="160"/>
+                        <DataGridTextColumn Header="Voucher #" Binding="{Binding Voucher.VoucherNumber}" Width="110"/>
+                        <DataGridTextColumn Header="Prev Invoice" Binding="{Binding PreviousInvoice.InvoiceNumber}" Width="110"/>
+                        <DataGridTextColumn Header="Prev End" Binding="{Binding PreviousInvoice.InvoiceEnd, StringFormat='MM/dd/yyyy'}" Width="90"/>
+                        <DataGridTextColumn Header="Next Invoice" Binding="{Binding NextInvoice.InvoiceNumber}" Width="110"/>
+                        <DataGridTextColumn Header="Next Start" Binding="{Binding NextInvoice.InvoiceStart, StringFormat='MM/dd/yyyy'}" Width="90"/>
+                        <DataGridTextColumn Header="Gap Days" Binding="{Binding GapDays}" Width="75"/>
+                        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- Coverage Gaps -->
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Coverage Gaps" VerticalAlignment="Center"/>
+                        <Border x:Name="CovBadge" Background="{StaticResource PurpleMidBrush}"
+                                CornerRadius="10" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="CovCount" Text="0" Foreground="White"
+                                       FontSize="11" FontWeight="Bold" FontFamily="Segoe UI"/>
+                        </Border>
+                    </StackPanel>
+                </TabItem.Header>
+                <DataGrid x:Name="CovGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                          GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                          Background="White" AlternatingRowBackground="#F4ECF7"
+                          BorderThickness="0" FontFamily="Segoe UI" FontSize="12" Margin="16,12">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Child" Binding="{Binding Child.FullName}" Width="160"/>
+                        <DataGridTextColumn Header="Ending Voucher" Binding="{Binding EndingVoucher.VoucherNumber}" Width="120"/>
+                        <DataGridTextColumn Header="Gap Start" Binding="{Binding GapStart, StringFormat='MM/dd/yyyy'}" Width="90"/>
+                        <DataGridTextColumn Header="Gap End" Binding="{Binding GapEnd, StringFormat='MM/dd/yyyy'}" Width="90"/>
+                        <DataGridTextColumn Header="Days" Binding="{Binding GapDays}" Width="60"/>
+                        <DataGridTextColumn Header="New Voucher" Binding="{Binding StartingVoucher.VoucherNumber}" Width="110"/>
+                        <DataGridTextColumn Header="Parent Liability" Binding="{Binding ParentLiabilityAmount, StringFormat='${0:N2}'}" Width="110"/>
+                        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- Low Payments -->
+            <TabItem>
+                <TabItem.Header>
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="Low Payments" VerticalAlignment="Center"/>
+                        <Border x:Name="LowBadge" Background="{StaticResource YellowWarnBrush}"
+                                CornerRadius="10" Padding="6,1" Margin="6,0,0,0" VerticalAlignment="Center">
+                            <TextBlock x:Name="LowCount" Text="0" Foreground="White"
+                                       FontSize="11" FontWeight="Bold" FontFamily="Segoe UI"/>
+                        </Border>
+                    </StackPanel>
+                </TabItem.Header>
+                <DataGrid x:Name="LowGrid" AutoGenerateColumns="False" IsReadOnly="True"
+                          GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                          Background="White" AlternatingRowBackground="#FEF9E7"
+                          BorderThickness="0" FontFamily="Segoe UI" FontSize="12" Margin="16,12">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Child" Binding="{Binding Child.FullName}" Width="160"/>
+                        <DataGridTextColumn Header="Voucher #" Binding="{Binding Voucher.VoucherNumber}" Width="110"/>
+                        <DataGridTextColumn Header="Invoice #" Binding="{Binding Invoice.InvoiceNumber}" Width="100"/>
+                        <DataGridTextColumn Header="Date" Binding="{Binding Invoice.InvoiceStart, StringFormat='MM/dd/yyyy'}" Width="90"/>
+                        <DataGridTextColumn Header="Actual" Binding="{Binding ActualPayment, StringFormat='${0:N2}'}" Width="90"/>
+                        <DataGridTextColumn Header="Median" Binding="{Binding MedianPayment, StringFormat='${0:N2}'}" Width="90"/>
+                        <DataGridTextColumn Header="% of Median" Binding="{Binding PercentOfMedian, StringFormat='{}{0:N1}%'}" Width="95"/>
+                        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+        </TabControl>
+    </DockPanel>
+</UserControl>

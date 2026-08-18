@@ -1,0 +1,46 @@
+<Window x:Class="HHDCTracker.Views.Children.ArchiveChildDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Archive Child" Width="480" SizeToContent="Height"
+        WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
+        Icon="/app.ico" Background="#F2F3F4">
+    <StackPanel Margin="24">
+        <TextBlock x:Name="TitleText" FontSize="16" FontWeight="Bold"
+                   FontFamily="Segoe UI" Foreground="#1A5276" Margin="0,0,0,8"/>
+        <TextBlock Text="This will hide the child from the active list. Their data is preserved and they can be unarchived at any time."
+                   FontSize="12" Foreground="#666" FontFamily="Segoe UI"
+                   TextWrapping="Wrap" Margin="0,0,0,16"/>
+
+        <!-- Active voucher termination -->
+        <Border x:Name="VoucherPanel" Background="#FEF9E7" CornerRadius="4"
+                Padding="12,10" Margin="0,0,0,16" Visibility="Collapsed">
+            <StackPanel>
+                <TextBlock FontSize="12" FontWeight="SemiBold" FontFamily="Segoe UI"
+                           Foreground="#7D6608" Margin="0,0,0,8">
+                    <Run Text="Active voucher detected: "/>
+                    <Run x:Name="VoucherNumRun" FontWeight="Bold"/>
+                </TextBlock>
+                <CheckBox x:Name="TerminateVoucherCheck" IsChecked="True"
+                          FontFamily="Segoe UI" FontSize="12" Margin="0,0,0,8"
+                          Content="Mark voucher as terminated"
+                          Checked="TerminateCheck_Changed"
+                          Unchecked="TerminateCheck_Changed"/>
+                <StackPanel x:Name="TermDatePanel" Orientation="Horizontal">
+                    <TextBlock Text="Termination date:" FontSize="12"
+                               FontFamily="Segoe UI" VerticalAlignment="Center"
+                               Margin="0,0,8,0"/>
+                    <TextBox x:Name="TxtTermDate" Width="120" Padding="6,4"
+                             FontFamily="Segoe UI" FontSize="12"
+                             BorderBrush="#2E86C1" BorderThickness="1"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,8,0,0">
+            <Button Content="Cancel" Padding="16,8" FontFamily="Segoe UI"
+                    FontSize="13" Margin="0,0,8,0" Click="Cancel_Click"/>
+            <Button Content="Archive Child" Style="{StaticResource DangerButton}"
+                    Padding="16,8" Click="Archive_Click"/>
+        </StackPanel>
+    </StackPanel>
+</Window>

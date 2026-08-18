@@ -1,0 +1,512 @@
+<UserControl x:Class="HHDCTracker.Views.Children.ChildProfileView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#F2F3F4">
+    <UserControl.Resources>
+        <!-- Field label style -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#888"/>
+            <Setter Property="Margin" Value="0,0,0,2"/>
+        </Style>
+        <!-- Field value style -->
+        <Style x:Key="FieldValue" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#222"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+        <!-- Editable TextBox style -->
+        <Style x:Key="EditBox" TargetType="TextBox">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="6,4"/>
+            <Setter Property="BorderBrush" Value="#2E86C1"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+        <!-- Voucher row card -->
+        <Style x:Key="VoucherCard" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="BorderBrush" Value="#E0E0E0"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="Padding" Value="16,12"/>
+        </Style>
+        <!-- Problem badge -->
+        <Style x:Key="ProblemBadge" TargetType="Border">
+            <Setter Property="Background" Value="#FADBD8"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
+        </Style>
+        <Style x:Key="OkBadge" TargetType="Border">
+            <Setter Property="Background" Value="#D5F5E3"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
+        </Style>
+        <Style x:Key="WarnBadge" TargetType="Border">
+            <Setter Property="Background" Value="#FDEBD0"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="Margin" Value="0,4,0,4"/>
+        </Style>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>  <!-- Header bar -->
+            <RowDefinition Height="*"/>     <!-- Content -->
+        </Grid.RowDefinitions>
+
+        <!-- ── HEADER BAR ──────────────────────────────────────── -->
+        <Border Grid.Row="0" Background="{StaticResource TealDarkBrush}" Padding="24,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock x:Name="ChildNameHeader"
+                               Text="New Child"
+                               Foreground="White" FontSize="20"
+                               FontWeight="Bold" FontFamily="Segoe UI"/>
+                    <TextBlock x:Name="ChildSubHeader"
+                               Foreground="#A9CCE3" FontSize="12"
+                               FontFamily="Segoe UI" Margin="0,2,0,0"/>
+                </StackPanel>
+                <!-- Header right: unresolved flag + archive button -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                            VerticalAlignment="Center" HorizontalAlignment="Right">
+                    <Border x:Name="UnresolvedBanner"
+                            Background="{StaticResource RedAlertBrush}"
+                            CornerRadius="4" Padding="12,6" Margin="0,0,8,0"
+                            Visibility="Collapsed">
+                        <TextBlock Text="⚠ Unresolved Invoices" Foreground="White"
+                                   FontWeight="SemiBold" FontFamily="Segoe UI" FontSize="12"/>
+                    </Border>
+                    <Button x:Name="BtnArchive" Content="Archive Child"
+                            Style="{StaticResource DangerButton}"
+                            Padding="12,6" FontSize="11"
+                            Visibility="Collapsed" Click="BtnArchive_Click"/>
+                    <Button x:Name="BtnUnarchive" Content="Unarchive"
+                            Style="{StaticResource PrimaryButton}"
+                            Padding="12,6" FontSize="11"
+                            Visibility="Collapsed" Click="BtnUnarchive_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- ── TAB CONTENT ─────────────────────────────────────── -->
+        <TabControl Grid.Row="1" x:Name="ProfileTabs"
+                    Background="Transparent" BorderThickness="0"
+                    Padding="0">
+            <TabControl.Resources>
+                <Style TargetType="TabItem">
+                    <Setter Property="FontFamily" Value="Segoe UI"/>
+                    <Setter Property="FontSize" Value="13"/>
+                    <Setter Property="Padding" Value="16,8"/>
+                    <Setter Property="Background" Value="Transparent"/>
+                    <Setter Property="BorderThickness" Value="0"/>
+                </Style>
+            </TabControl.Resources>
+
+            <!-- ══ OVERVIEW TAB ══════════════════════════════════ -->
+            <TabItem Header="Overview">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Margin="24,20" MaxWidth="900">
+
+                        <!-- Child details card -->
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Style="{StaticResource SectionHeader}"
+                                               Text="Child Information"/>
+                                    <Grid x:Name="ChildInfoGrid">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="First Name"/>
+                                            <TextBlock x:Name="LblFirstName" Style="{StaticResource FieldValue}"/>
+                                            <TextBox x:Name="TxtFirstName" Style="{StaticResource EditBox}"
+                                                     Visibility="Collapsed"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="0,0,16,0">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Last Name"/>
+                                            <TextBlock x:Name="LblLastName" Style="{StaticResource FieldValue}"/>
+                                            <TextBox x:Name="TxtLastName" Style="{StaticResource EditBox}"
+                                                     Visibility="Collapsed"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Date of Birth"/>
+                                            <TextBlock x:Name="LblDOB" Style="{StaticResource FieldValue}"/>
+                                            <TextBox x:Name="TxtDOB" Style="{StaticResource EditBox}"
+                                                     Visibility="Collapsed"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <!-- Aliases -->
+                                    <TextBlock Style="{StaticResource FieldLabel}"
+                                               Text="Name Aliases" Margin="0,12,0,4"/>
+                                    <ItemsControl x:Name="AliasPanel">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel/>
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border Background="{StaticResource TealLightBrush}"
+                                                        CornerRadius="10" Padding="10,4" Margin="0,0,6,4">
+                                                    <StackPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding AliasName}"
+                                                                   FontSize="12" FontFamily="Segoe UI"/>
+                                                        <Button x:Name="RemoveAlias" Content="×"
+                                                                Tag="{Binding AliasId}"
+                                                                Background="Transparent" BorderThickness="0"
+                                                                FontSize="13" Margin="4,0,0,0"
+                                                                Cursor="Hand" Foreground="#888"
+                                                                Click="RemoveAlias_Click"
+                                                                Visibility="{Binding IsEditMode,
+                                                                    RelativeSource={RelativeSource AncestorType=UserControl},
+                                                                    Converter={StaticResource BoolToVis}}"/>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                    <StackPanel Orientation="Horizontal" x:Name="AddAliasPanel"
+                                                Margin="0,4,0,0" Visibility="Collapsed">
+                                        <TextBox x:Name="TxtNewAlias" Style="{StaticResource EditBox}"
+                                                 Width="200" Margin="0,0,8,0"/>
+                                        <Button Content="Add" Style="{StaticResource PrimaryButton}"
+                                                Padding="12,4" FontSize="12" Click="AddAlias_Click"/>
+                                    </StackPanel>
+                                </StackPanel>
+                                <!-- Edit / Save / Cancel buttons -->
+                                <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                            VerticalAlignment="Top" Margin="16,0,0,0">
+                                    <Button x:Name="BtnEditChild" Content="✏ Edit"
+                                            Style="{StaticResource EditButton}"
+                                            Padding="12,6" FontSize="12"
+                                            Click="EditChild_Click"/>
+                                    <Button x:Name="BtnSaveChild" Content="💾 Save"
+                                            Style="{StaticResource PrimaryButton}"
+                                            Padding="12,6" FontSize="12" Margin="8,0,0,0"
+                                            Visibility="Collapsed" Click="SaveChild_Click"/>
+                                    <Button x:Name="BtnCancelChild" Content="Cancel"
+                                            Padding="12,6" FontSize="12" Margin="8,0,0,0"
+                                            Visibility="Collapsed" Click="CancelChild_Click"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+
+                        <!-- Active Voucher snapshot -->
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SectionHeader}"
+                                           Text="Active Voucher"/>
+                                <!-- Voucher one-liner — same layout as voucher list rows -->
+                                <Border x:Name="ActiveVoucherRow" Background="#F8FBFF"
+                                        BorderBrush="#D6EAF8" BorderThickness="1"
+                                        CornerRadius="4" Padding="12,10">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="120"/>
+                                            <ColumnDefinition Width="100"/>
+                                            <ColumnDefinition Width="180"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="110"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Voucher #"/>
+                                            <TextBlock x:Name="OvVoucherNum" Style="{StaticResource FieldValue}"
+                                                       FontWeight="SemiBold" Foreground="{StaticResource TealDarkBrush}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Type"/>
+                                            <TextBlock x:Name="OvRateType" Style="{StaticResource FieldValue}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Period"/>
+                                            <TextBlock x:Name="OvPeriod" Style="{StaticResource FieldValue}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="3">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="VO/Wk"/>
+                                            <TextBlock x:Name="OvVO" Style="{StaticResource FieldValue}"
+                                                       Foreground="#2471A3"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="4">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="HHDC/Wk"/>
+                                            <TextBlock x:Name="OvHHDC" Style="{StaticResource FieldValue}"
+                                                       Foreground="#2471A3"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="5">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Copay/Wk"/>
+                                            <TextBlock x:Name="OvCopay" Style="{StaticResource FieldValue}"
+                                                       FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="6">
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Summer Window"/>
+                                            <TextBlock x:Name="OvSummer" Style="{StaticResource FieldValue}"
+                                                       Foreground="#888"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                                <TextBlock x:Name="NoActiveVoucher" Text="No active voucher — add one on the Vouchers tab."
+                                           Foreground="#888" FontStyle="Italic" FontFamily="Segoe UI"
+                                           Visibility="Collapsed" Margin="0,8,0,0"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Balance summary card -->
+                        <Border Style="{StaticResource Card}" Margin="0,0,0,16">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SectionHeader}" Text="Balance Summary"/>
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="*"/>
+                                    </Grid.ColumnDefinitions>
+                                    <Border Grid.Column="0" Margin="0,0,8,0" CornerRadius="4"
+                                            Padding="12,10" Background="#F8F9FA">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Ledger Balance"/>
+                                            <TextBlock x:Name="BalLedger" FontSize="18" FontWeight="Bold"
+                                                       FontFamily="Segoe UI"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="1" Margin="0,0,8,0" CornerRadius="4"
+                                            Padding="12,10" Background="#F8F9FA">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="True-Up Balance"/>
+                                            <TextBlock x:Name="BalTrueUp" FontSize="18" FontWeight="Bold"
+                                                       FontFamily="Segoe UI"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="2" Margin="0,0,8,0" CornerRadius="4"
+                                            Padding="12,10" Background="#F8F9FA">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Running Credit"/>
+                                            <TextBlock x:Name="BalCredit" FontSize="18" FontWeight="Bold"
+                                                       FontFamily="Segoe UI"/>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Grid.Column="3" CornerRadius="4"
+                                            Padding="12,10" x:Name="NetBalCard" Background="#F8F9FA">
+                                        <StackPanel>
+                                            <TextBlock Style="{StaticResource FieldLabel}" Text="Net Balance"/>
+                                            <TextBlock x:Name="BalNet" FontSize="18" FontWeight="Bold"
+                                                       FontFamily="Segoe UI"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Open Problems card -->
+                        <Border Style="{StaticResource Card}" x:Name="ProblemsCard"
+                                Margin="0,0,0,16" Visibility="Collapsed">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SectionHeader}"
+                                           Text="Open Issues" Foreground="{StaticResource RedAlertBrush}"/>
+                                <ItemsControl x:Name="ProblemsList">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Border Style="{StaticResource ProblemBadge}">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="140"/>
+                                                        <ColumnDefinition Width="100"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="110"/>
+                                                        <ColumnDefinition Width="110"/>
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Grid.Column="0" Text="{Binding Invoice.InvoiceNumber}"
+                                                               FontWeight="SemiBold" FontFamily="Segoe UI" FontSize="12"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding IssueType}"
+                                                               Foreground="{StaticResource RedAlertBrush}"
+                                                               FontWeight="Bold" FontFamily="Segoe UI" FontSize="11"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Invoice.InvoiceStart, StringFormat='MMM d, yyyy'}"
+                                                               Foreground="#666" FontFamily="Segoe UI" FontSize="12"/>
+                                                    <TextBlock Grid.Column="3" FontFamily="Segoe UI" FontSize="12">
+                                                        <Run Text="Shortfall: "/>
+                                                        <Run Text="{Binding VOShortfall, StringFormat='${0:N2}'}"
+                                                             Foreground="{StaticResource RedAlertBrush}" FontWeight="SemiBold"/>
+                                                    </TextBlock>
+                                                    <TextBlock Grid.Column="4" FontFamily="Segoe UI" FontSize="12">
+                                                        <Run Text="TU Applied: "/>
+                                                        <Run Text="{Binding TrueUpApplied, StringFormat='${0:N2}'}"/>
+                                                    </TextBlock>
+                                                    <TextBlock Grid.Column="5" FontFamily="Segoe UI" FontSize="12"
+                                                               FontWeight="Bold">
+                                                        <Run Text="Remaining: "/>
+                                                        <Run Text="{Binding Remaining, StringFormat='${0:N2}'}"
+                                                             Foreground="{StaticResource RedAlertBrush}"/>
+                                                    </TextBlock>
+                                                </Grid>
+                                            </Border>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Notes card -->
+                        <Border Style="{StaticResource Card}">
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource SectionHeader}" Text="Notes"/>
+                                <TextBlock x:Name="LblNotes" Style="{StaticResource FieldValue}"
+                                           Text="—" Foreground="#888"/>
+                                <TextBox x:Name="TxtNotes" Style="{StaticResource EditBox}"
+                                         AcceptsReturn="True" Height="80"
+                                         Visibility="Collapsed" TextWrapping="Wrap"/>
+                            </StackPanel>
+                        </Border>
+
+                    </StackPanel>
+                </ScrollViewer>
+            </TabItem>
+
+            <!-- ══ VOUCHERS TAB ══════════════════════════════════ -->
+            <TabItem Header="Vouchers">
+                <DockPanel>
+                    <!-- Add voucher button -->
+                    <Border DockPanel.Dock="Top" Background="White"
+                            BorderBrush="#E0E0E0" BorderThickness="0,0,0,1"
+                            Padding="16,10">
+                        <Button Content="+ Add Voucher" Style="{StaticResource PrimaryButton}"
+                                HorizontalAlignment="Left" Padding="14,6" FontSize="12"
+                                Click="AddVoucher_Click"/>
+                    </Border>
+
+                    <!-- Voucher list -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="VoucherList" Margin="16,12"/>
+                    </ScrollViewer>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ══ INVOICE HISTORY TAB ═══════════════════════════ -->
+            <TabItem Header="Invoice History">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="White"
+                            BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="16,10">
+                        <TextBlock Style="{StaticResource SectionHeader}"
+                                   Text="Invoice History" Margin="0"/>
+                    </Border>
+                    <DataGrid x:Name="InvoiceGrid"
+                              AutoGenerateColumns="False"
+                              IsReadOnly="True"
+                              GridLinesVisibility="Horizontal"
+                              HeadersVisibility="Column"
+                              Background="White"
+                              RowBackground="White"
+                              AlternatingRowBackground="#F8FBFF"
+                              BorderThickness="0"
+                              FontFamily="Segoe UI" FontSize="12"
+                              Margin="0">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Invoice #" Binding="{Binding InvoiceNumber}" Width="110"/>
+                            <DataGridTextColumn Header="Start" Binding="{Binding InvoiceStart, StringFormat='MM/dd/yyyy'}" Width="90"/>
+                            <DataGridTextColumn Header="End" Binding="{Binding InvoiceEnd, StringFormat='MM/dd/yyyy'}" Width="90"/>
+                            <DataGridTextColumn Header="Days" Binding="{Binding DaysBilled}" Width="55"/>
+                            <DataGridTextColumn Header="VO Expected" Binding="{Binding VOExpectedTotal, StringFormat='${0:N2}'}" Width="100"/>
+                            <DataGridTextColumn Header="Received" Binding="{Binding PaymentTotal, StringFormat='${0:N2}'}" Width="90"/>
+                            <DataGridTextColumn Header="Discrepancy" Binding="{Binding VODiscrepancy, StringFormat='${0:N2}'}" Width="100"/>
+                            <DataGridTextColumn Header="TU?" Binding="{Binding HasTrueUpFlag}" Width="45"/>
+                            <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*"/>
+                        </DataGrid.Columns>
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding VODiscrepancy, Converter={StaticResource NegativeConverter}}" Value="True">
+                                        <Setter Property="Background" Value="#FADBD8"/>
+                                    </DataTrigger>
+                                    <DataTrigger Binding="{Binding IsUnresolved}" Value="True">
+                                        <Setter Property="Background" Value="#FDEBD0"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+            <!-- ══ TRUE-UPS TAB ══════════════════════════════════ -->
+            <TabItem Header="True-Ups">
+                <DataGrid x:Name="TrueUpGrid"
+                          AutoGenerateColumns="False" IsReadOnly="True"
+                          GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                          Background="White" RowBackground="White"
+                          AlternatingRowBackground="#F4ECF7"
+                          BorderThickness="0" FontFamily="Segoe UI" FontSize="12">
+                    <DataGrid.Columns>
+                        <DataGridTextColumn Header="Invoice" Binding="{Binding InvoiceNumber}" Width="100"/>
+                        <DataGridTextColumn Header="Type" Binding="{Binding TrueUpType}" Width="220"/>
+                        <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="200"/>
+                        <DataGridTextColumn Header="Month" Binding="{Binding APReconcilingMonth}" Width="80"/>
+                        <DataGridTextColumn Header="Adjust Days" Binding="{Binding AdjustDays}" Width="80"/>
+                        <DataGridTextColumn Header="Amount" Binding="{Binding TrueUpAdjustAmount, StringFormat='${0:N2}'}" Width="90"/>
+                        <DataGridTextColumn Header="AP Amount" Binding="{Binding APAmount, StringFormat='${0:N2}'}" Width="90"/>
+                        <DataGridTextColumn Header="Notes" Binding="{Binding Notes}" Width="*"/>
+                    </DataGrid.Columns>
+                </DataGrid>
+            </TabItem>
+
+            <!-- ══ ADJUSTMENTS TAB ═══════════════════════════════ -->
+            <TabItem Header="Adjustments">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="White"
+                            BorderBrush="#E0E0E0" BorderThickness="0,0,0,1" Padding="16,10">
+                        <Button Content="+ Add Adjustment" Style="{StaticResource PrimaryButton}"
+                                HorizontalAlignment="Left" Padding="14,6" FontSize="12"
+                                Click="AddAdjustment_Click"/>
+                    </Border>
+                    <DataGrid x:Name="AdjGrid"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              GridLinesVisibility="Horizontal" HeadersVisibility="Column"
+                              Background="White" RowBackground="White"
+                              AlternatingRowBackground="#EBF5FB"
+                              BorderThickness="0" FontFamily="Segoe UI" FontSize="12">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Date" Binding="{Binding AdjustmentDate, StringFormat='MM/dd/yyyy'}" Width="90"/>
+                            <DataGridTextColumn Header="Apply To" Binding="{Binding ApplyTo}" Width="140"/>
+                            <DataGridTextColumn Header="Invoice #" Binding="{Binding Invoice.InvoiceNumber}" Width="100"/>
+                            <DataGridTextColumn Header="Amount" Binding="{Binding Amount, StringFormat='${0:N2}'}" Width="90"/>
+                            <DataGridTextColumn Header="Running Credit" Width="110">
+                                <DataGridTextColumn.Binding>
+                                    <Binding Path="RunningCreditAfter" StringFormat="${0:N2}"/>
+                                </DataGridTextColumn.Binding>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Header="Reason" Binding="{Binding Reason}" Width="*"/>
+                        </DataGrid.Columns>
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding RunningCreditAfter, Converter={StaticResource NegativeConverter}}" Value="True">
+                                        <Setter Property="Background" Value="#FADBD8"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                    </DataGrid>
+                </DockPanel>
+            </TabItem>
+
+        </TabControl>
+    </Grid>
+</UserControl>

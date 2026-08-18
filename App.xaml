@@ -1,0 +1,118 @@
+<Application x:Class="HHDCTracker.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:helpers="clr-namespace:HHDCTracker.Helpers"
+             StartupUri="Views/LoginWindow.xaml">
+    <Application.Resources>
+        <!-- ── Converters ── -->
+        <helpers:NegativeConverter x:Key="NegativeConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVis"/>
+
+        <!-- ── Brand Colors ── -->
+        <SolidColorBrush x:Key="TealDarkBrush"    Color="#1A5276"/>
+        <SolidColorBrush x:Key="TealMidBrush"     Color="#2E86C1"/>
+        <SolidColorBrush x:Key="TealLightBrush"   Color="#D6EAF8"/>
+        <SolidColorBrush x:Key="AccentOrangeBrush" Color="#E67E22"/>
+        <SolidColorBrush x:Key="GreenOkBrush"     Color="#27AE60"/>
+        <SolidColorBrush x:Key="RedAlertBrush"    Color="#E74C3C"/>
+        <SolidColorBrush x:Key="YellowWarnBrush"  Color="#F39C12"/>
+        <SolidColorBrush x:Key="GrayLightBrush"   Color="#F2F3F4"/>
+        <SolidColorBrush x:Key="PurpleDarkBrush"   Color="#6C3483"/>
+        <SolidColorBrush x:Key="PurpleMidBrush"    Color="#8E44AD"/>
+        <SolidColorBrush x:Key="PurpleLightBrush"  Color="#F4ECF7"/>
+        <SolidColorBrush x:Key="GreenLightBrush"   Color="#D5F5E3"/>
+        <SolidColorBrush x:Key="GreenDarkBrush"    Color="#1E8449"/>
+
+        <!-- ── Placeholder TextBox Style ── -->
+        <!-- Wrap a TextBox in a Grid with an overlaid placeholder TextBlock.
+             The TextBlock uses a DataTrigger to hide when the TextBox has content. -->
+        <Style x:Key="PlaceholderBox" TargetType="TextBox">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="BorderBrush" Value="#CCCCCC"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+
+        <!-- ── Base TextBlock ── -->
+        <Style TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
+        <!-- ── Primary Button ── -->
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource TealMidBrush}"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}"
+                                CornerRadius="4" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="{StaticResource TealDarkBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.5"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="EditButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="{StaticResource AccentOrangeBrush}"/>
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="{StaticResource RedAlertBrush}"/>
+        </Style>
+
+        <Style x:Key="PurpleButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="{StaticResource PurpleMidBrush}"/>
+        </Style>
+
+        <!-- ── Card Panel ── -->
+        <Style x:Key="Card" TargetType="Border">
+            <Setter Property="Background" Value="White"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="16"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="8" ShadowDepth="2"
+                                      Color="#22000000" Direction="270"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- ── Section Header ── -->
+        <Style x:Key="SectionHeader" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="15"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource TealDarkBrush}"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- ── Field Label ── -->
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Foreground" Value="#888888"/>
+            <Setter Property="Margin" Value="0,0,0,3"/>
+        </Style>
+    </Application.Resources>
+</Application>

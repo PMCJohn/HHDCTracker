@@ -1,0 +1,8 @@
+<UserControl x:Class="HHDCTracker.Views.Dashboard.DashboardView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Border Padding="32">
+        <TextBlock Text="DashboardView" FontSize="22" FontWeight="Bold"
+                   FontFamily="Segoe UI" Foreground="#1A5276"/>
+    </Border>
+</UserControl>
