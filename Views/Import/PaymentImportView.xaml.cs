@@ -10,12 +10,31 @@ public partial class PaymentImportView : UserControl
 {
     private DispatcherTimer? _notifTimer;
 
+    // Session-persistent form state — survives navigation, cleared on successful import
+    private static string _savedInvoiceNum = "";
+    private static string _savedStartDate = "";
+    private static string _savedEndDate = "";
+    private static string _savedPayDate = "";
+    private static string _savedPasteData = "";
+
     public PaymentImportView()
     {
         InitializeComponent();
+        // Restore saved state
+        TxtInvoiceNum.Text = _savedInvoiceNum;
+        TxtStartDate.Text = _savedStartDate;
+        TxtEndDate.Text = _savedEndDate;
+        TxtPayDate.Text = _savedPayDate;
+        PasteBox.Text = _savedPasteData;
+
+        // Save state as user types
+        TxtInvoiceNum.TextChanged += (_, _) => _savedInvoiceNum = TxtInvoiceNum.Text;
+        TxtStartDate.TextChanged += (_, _) => _savedStartDate = TxtStartDate.Text;
+        TxtEndDate.TextChanged += (_, _) => _savedEndDate = TxtEndDate.Text;
+        TxtPayDate.TextChanged += (_, _) => _savedPayDate = TxtPayDate.Text;
+        PasteBox.TextChanged += (_, _) => _savedPasteData = PasteBox.Text;
     }
 
-    // ── PARSE PASTE AREA ──────────────────────────────────────────────────
     private List<ImportService.PaymentRow> ParsePasteData()
     {
         var rows = new List<ImportService.PaymentRow>();
@@ -25,20 +44,13 @@ public partial class PaymentImportView : UserControl
             .Where(l => !string.IsNullOrEmpty(l))
             .ToList();
 
-        // Skip header row if present
         if (lines.Count > 0 && lines[0].ToLower().Contains("child name"))
             lines = lines.Skip(1).ToList();
 
         foreach (var line in lines)
         {
-            // Browser table copies as tab-separated
             var cols = line.Split('\t');
             if (cols.Length < 13) continue;
-
-            // Col map: 0=ChildName, 1=Infant, 2=DOB, 3=RegFee(ignored),
-            //          4=Absences, 5=CareUnits, 6=SpecialNeed,
-            //          7=MDExcels, 8=Scholarship, 9=PayTotal,
-            //          10=PCACode, 11=TrueUpFlag, 12=ScholarshipID
             rows.Add(new ImportService.PaymentRow(
                 ChildNameMSDE: cols[0].Trim(),
                 ScholarshipId: cols[12].Trim(),
@@ -53,10 +65,8 @@ public partial class PaymentImportView : UserControl
         return rows;
     }
 
-    // ── IMPORT ────────────────────────────────────────────────────────────
     private async void Import_Click(object sender, RoutedEventArgs e)
     {
-        // Validate sub-table
         if (string.IsNullOrWhiteSpace(TxtInvoiceNum.Text))
         {
             MessageBox.Show("Please enter an Invoice #.", "Required",
@@ -72,97 +82,97 @@ public partial class PaymentImportView : UserControl
         }
 
         DateTime.TryParse(TxtPayDate.Text, out var payDate);
-        int.TryParse(TxtClosureDays.Text, out var closureDays);
-
         var rows = ParsePasteData();
         if (rows.Count == 0)
         {
-            MessageBox.Show("No data found in the paste area. " +
-                "Please paste your MSDE data and try again.", "No Data",
+            MessageBox.Show("No data found in the paste area.", "No Data",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         var session = new ImportService.PaymentImportSession(
             TxtInvoiceNum.Text.Trim(), startDate, endDate,
-            payDate == default ? null : payDate, closureDays);
+            payDate == default ? null : payDate);
 
         var svc = new ImportService(App.Db!, App.CurrentLocation!.LocationId);
 
-        // Step 1 — Name validation
-        StatusText.Text = "Validating...";
-        StatusText.Visibility = Visibility.Visible;
-
+        // Validate
+        SetImportingState(true, "Validating...", 0, rows.Count);
         var nameErrors = await svc.ValidatePaymentNamesAsync(rows);
         if (nameErrors.Any())
         {
-            StatusText.Visibility = Visibility.Collapsed;
+            SetImportingState(false);
             MessageBox.Show(
-                $"Import rejected — {nameErrors.Count} name mismatch(es):\n\n" +
+                $"Import rejected — {nameErrors.Count} mismatch(es):\n\n" +
                 string.Join("\n", nameErrors),
                 "Validation Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
-        // Step 2 — Duplicate check
+        // Duplicate check
         var dupeCheck = await svc.CheckPaymentDuplicatesAsync(rows, session);
         if (dupeCheck.Duplicates.Any())
         {
-            StatusText.Visibility = Visibility.Collapsed;
+            SetImportingState(false);
             var dlg = new DuplicateConfirmDialog(dupeCheck.Duplicates, "payment invoice");
             dlg.Owner = Window.GetWindow(this);
             if (dlg.ShowDialog() != true) return;
+            SetImportingState(true, "Importing...", 0, rows.Count);
         }
 
-        // Step 3 — Import
-        StatusText.Text = "Importing...";
+        // Import with progress
         var result = await svc.ImportPaymentsAsync(rows, session,
-            App.CurrentUser!.UserId);
+            App.CurrentUser!.UserId,
+            (current, total) => Dispatcher.Invoke(() =>
+                SetImportingState(true, $"Importing row {current} of {total}...",
+                    current, total)));
 
-        // Clear on success
-        PasteBox.Clear();
-        TxtInvoiceNum.Clear();
-        TxtStartDate.Clear();
-        TxtEndDate.Clear();
-        TxtPayDate.Clear();
-        TxtClosureDays.Text = "0";
-        StatusText.Visibility = Visibility.Collapsed;
+        SetImportingState(false);
 
-        // Show notification
+        // Clear form and saved state on success
+        PasteBox.Clear(); TxtInvoiceNum.Clear(); TxtStartDate.Clear();
+        TxtEndDate.Clear(); TxtPayDate.Clear();
+        _savedInvoiceNum = _savedStartDate = _savedEndDate =
+            _savedPayDate = _savedPasteData = "";
+
         ShowNotification(result);
     }
 
-    // ── NOTIFICATION ──────────────────────────────────────────────────────
+    private void SetImportingState(bool importing, string label = "",
+        int current = 0, int total = 1)
+    {
+        BtnImport.IsEnabled = !importing;
+        ProgressPanel.Visibility = importing ? Visibility.Visible : Visibility.Collapsed;
+        if (!importing) return;
+        ProgressLabel.Text = label;
+        double pct = total > 0 ? (double)current / total * 100 : 0;
+        ImportProgressBar.Value = pct;
+        ProgressPct.Text = $"{pct:N0}%";
+    }
+
     private void ShowNotification(ImportService.ImportResult result)
     {
-        bool hasIssues = result.RowsUnresolved > 0 || result.RowsSkipped > 0
-                         || result.Errors.Any();
-
+        bool hasIssues = result.RowsUnresolved > 0 || result.Errors.Any();
         NotificationBanner.Background = hasIssues
-            ? new SolidColorBrush(Color.FromRgb(253, 235, 208))   // yellow
-            : new SolidColorBrush(Color.FromRgb(213, 245, 227));  // green
+            ? new SolidColorBrush(Color.FromRgb(253, 235, 208))
+            : new SolidColorBrush(Color.FromRgb(213, 245, 227));
 
         var msg = $"✓  {result.RowsImported} row(s) imported successfully.";
         if (result.RowsSkipped > 0)
             msg += $"  ·  {result.RowsSkipped} True-Up row(s) skipped.";
         if (result.RowsUnresolved > 0)
-            msg += $"  ·  ⚠ {result.RowsUnresolved} unresolved voucher(s) — " +
-                   "please review flagged entries on the child's profile.";
+            msg += $"  ·  ⚠ {result.RowsUnresolved} unresolved — please review the Unresolved page.";
         if (result.Errors.Any())
-            msg += $"  ·  {result.Errors.Count} error(s): " +
-                   string.Join(", ", result.Errors);
+            msg += $"  ·  {result.Errors.Count} error(s): {string.Join(", ", result.Errors)}";
 
         NotificationText.Text = msg;
         NotificationText.Foreground = hasIssues
             ? new SolidColorBrush(Color.FromRgb(126, 97, 6))
             : new SolidColorBrush(Color.FromRgb(30, 132, 73));
-
         NotificationBanner.Visibility = Visibility.Visible;
 
-        // Auto-dismiss after 10 seconds
         _notifTimer?.Stop();
-        _notifTimer = new DispatcherTimer
-            { Interval = TimeSpan.FromSeconds(10) };
+        _notifTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
         _notifTimer.Tick += (_, _) =>
         {
             NotificationBanner.Visibility = Visibility.Collapsed;
@@ -179,12 +189,10 @@ public partial class PaymentImportView : UserControl
 
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
-        PasteBox.Clear();
-        TxtInvoiceNum.Clear();
-        TxtStartDate.Clear();
-        TxtEndDate.Clear();
-        TxtPayDate.Clear();
-        TxtClosureDays.Text = "0";
+        PasteBox.Clear(); TxtInvoiceNum.Clear(); TxtStartDate.Clear();
+        TxtEndDate.Clear(); TxtPayDate.Clear();
+        _savedInvoiceNum = _savedStartDate = _savedEndDate =
+            _savedPayDate = _savedPasteData = "";
         NotificationBanner.Visibility = Visibility.Collapsed;
     }
 }

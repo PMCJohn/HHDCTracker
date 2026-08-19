@@ -23,9 +23,10 @@ public class ImportService
         decimal MDExcels, decimal Scholarship, decimal PaymentTotal,
         string PCACodeLabel, bool HasTrueUpFlag);
 
+    // Note: ClosureDays removed — MSDE uses straight Mon-Fri, no closures
     public record PaymentImportSession(
         string InvoiceNumber, DateTime InvoiceStart, DateTime InvoiceEnd,
-        DateTime? PaymentDate, int ClosureDays);
+        DateTime? PaymentDate);
 
     public record TrueUpRow(
         string Reason, string ScholarshipNumber, string ChildNameMSDE,
@@ -42,42 +43,39 @@ public class ImportService
 
     // ── MSDE Expected Calculation ─────────────────────────────────────────
     /// <summary>
-    /// Calculates MSDE's VOExpectedTotal for an invoice using the confirmed formula:
+    /// Calculates MSDE VOExpectedTotal using confirmed formula:
     ///   DailyRate = VOPromisedWeekly / 5
-    ///   MonthlyExpected = DailyRate × MonthBusinessDays
-    ///   Full invoice  → MonthlyExpected / 2
+    ///   MonthlyExpected = DailyRate × MonthBusinessDays (straight Mon-Fri)
+    ///   Full period  → MonthlyExpected / 2
     ///   Partial month → MonthlyExpected × (VoucherActiveBusinessDays / MonthBusinessDays)
     /// </summary>
     public static decimal CalculateVOExpected(
-        decimal voPromisedWeekly,
+        decimal weeklyRate,
         DateTime invoiceStart,
         DateTime invoiceEnd,
         DateTime voucherPeriodStart,
-        DateTime? voucherPeriodEnd,
-        int closureDays = 0)
+        DateTime? voucherPeriodEnd)
     {
-        decimal dailyRate = voPromisedWeekly / 5m;
+        decimal dailyRate = weeklyRate / 5m;
         int year = invoiceStart.Year;
         int month = invoiceStart.Month;
 
-        int monthBizDays = NetworkDaysHelper.MonthBusinessDays(year, month, closureDays);
+        int monthBizDays = NetworkDaysHelper.MonthBusinessDays(year, month);
         if (monthBizDays == 0) return 0;
 
         decimal monthlyExpected = dailyRate * monthBizDays;
 
-        // Check if voucher covers the full invoice period
         bool voucherCoversFullInvoice =
             voucherPeriodStart <= invoiceStart &&
             (!voucherPeriodEnd.HasValue || voucherPeriodEnd.Value >= invoiceEnd);
 
         if (voucherCoversFullInvoice)
-            return monthlyExpected / 2m;
+            return Math.Round(monthlyExpected / 2m, 2);
 
-        // Partial month — pro-rate by actual voucher business days in this month
         int voucherBizDays = NetworkDaysHelper.VoucherBusinessDaysInMonth(
             voucherPeriodStart, voucherPeriodEnd, year, month);
 
-        return monthlyExpected * ((decimal)voucherBizDays / monthBizDays);
+        return Math.Round(monthlyExpected * ((decimal)voucherBizDays / monthBizDays), 2);
     }
 
     // ── Payment Validation ────────────────────────────────────────────────
@@ -92,10 +90,11 @@ public class ImportService
             if (match.Child == null) continue;
             var voucher = await DbRetryService.ExecuteAsync(() =>
                 _db.Vouchers.AsNoTracking().FirstOrDefaultAsync(v =>
-                    v.VoucherNumber == row.ScholarshipId && v.ChildId == match.Child.ChildId));
+                    v.VoucherNumber == row.ScholarshipId
+                    && v.ChildId == match.Child.ChildId));
             if (voucher == null && match.MatchType == "Exact")
-                errors.Add($"Row {i + 1}: Voucher {row.ScholarshipId} does not belong " +
-                           $"to {match.Child.FullName} in the registry.");
+                errors.Add($"Row {i + 1}: Voucher {row.ScholarshipId} does not " +
+                           $"belong to {match.Child.FullName}.");
         }
         return errors;
     }
@@ -121,7 +120,8 @@ public class ImportService
 
     // ── Payment Import ────────────────────────────────────────────────────
     public async Task<ImportResult> ImportPaymentsAsync(
-        List<PaymentRow> rows, PaymentImportSession session, int importedByUserId)
+        List<PaymentRow> rows, PaymentImportSession session,
+        int importedByUserId, Action<int, int>? progressCallback = null)
     {
         int imported = 0, skipped = 0, unresolved = 0;
         var skippedDetails = new List<string>();
@@ -133,18 +133,21 @@ public class ImportService
             ImportType = "Payment", ImportedByUserId = importedByUserId,
             LocationId = _locationId, InvoiceNumber = session.InvoiceNumber,
             InvoiceStart = session.InvoiceStart, InvoiceEnd = session.InvoiceEnd,
-            PaymentDate = session.PaymentDate, ClosureDays = session.ClosureDays
+            PaymentDate = session.PaymentDate, ClosureDays = 0
         };
         _db.ImportSessions.Add(importSession);
         await DbRetryService.ExecuteAsync(() => _db.SaveChangesAsync());
 
-        for (int i = 0; i < rows.Count; i++)
+        int total = rows.Count;
+        for (int i = 0; i < total; i++)
         {
+            progressCallback?.Invoke(i + 1, total);
             var row = rows[i];
+
             if (row.HasTrueUpFlag)
             {
                 skipped++;
-                skippedDetails.Add($"Row {i + 1}: Voucher {row.ScholarshipId} — True-Up flag");
+                skippedDetails.Add($"Row {i + 1}: {row.ScholarshipId} — True-Up flag");
                 continue;
             }
 
@@ -155,20 +158,19 @@ public class ImportService
 
                 Voucher? voucher = null;
                 if (child != null)
-                {
                     voucher = await DbRetryService.ExecuteAsync(() =>
                         _db.Vouchers.AsNoTracking().Where(v =>
                             v.VoucherNumber == row.ScholarshipId
                             && v.ChildId == child.ChildId
                             && v.PeriodStart <= session.InvoiceStart
                             && (v.PeriodEnd == null || v.PeriodEnd >= session.InvoiceStart)
-                            && (v.TerminationDate == null || v.TerminationDate >= session.InvoiceStart))
+                            && (v.TerminationDate == null
+                                || v.TerminationDate >= session.InvoiceStart))
                         .FirstOrDefaultAsync());
-                }
 
                 bool isUnresolved = child == null || voucher == null;
                 int daysBilled = NetworkDaysHelper.Calculate(
-                    session.InvoiceStart, session.InvoiceEnd, session.ClosureDays);
+                    session.InvoiceStart, session.InvoiceEnd);
 
                 decimal dailyVORate = 0, dailyHHDCRate = 0;
                 decimal voExpected = 0, hhdcExpected = 0;
@@ -177,25 +179,19 @@ public class ImportService
                 {
                     dailyVORate = voucher.GetDailyVORateForDate(session.InvoiceStart);
                     dailyHHDCRate = voucher.GetDailyHHDCRateForDate(session.InvoiceStart);
-
-                    // Use confirmed MSDE formula
-                    voExpected = CalculateVOExpected(
-                        voucher.VOPromisedWeekly,
+                    var voucherEnd = voucher.TerminationDate ?? voucher.PeriodEnd;
+                    voExpected = CalculateVOExpected(voucher.VOPromisedWeekly,
                         session.InvoiceStart, session.InvoiceEnd,
-                        voucher.PeriodStart, voucher.TerminationDate ?? voucher.PeriodEnd,
-                        session.ClosureDays);
-
-                    hhdcExpected = CalculateVOExpected(
-                        voucher.HHDCChargeWeekly,
+                        voucher.PeriodStart, voucherEnd);
+                    hhdcExpected = CalculateVOExpected(voucher.HHDCChargeWeekly,
                         session.InvoiceStart, session.InvoiceEnd,
-                        voucher.PeriodStart, voucher.TerminationDate ?? voucher.PeriodEnd,
-                        session.ClosureDays);
+                        voucher.PeriodStart, voucherEnd);
                 }
 
                 if (isUnresolved)
                 {
                     unresolved++;
-                    unresolvedDetails.Add($"Voucher {row.ScholarshipId} ({row.ChildNameMSDE})");
+                    unresolvedDetails.Add($"{row.ScholarshipId} ({row.ChildNameMSDE})");
                     if (child != null) child.HasUnresolved = true;
 
                     int childId = child?.ChildId ?? 0;
@@ -209,15 +205,15 @@ public class ImportService
                              ScholarshipAmount, PaymentTotal, VODiscrepancy,
                              HHDCSurplus, HasTrueUpFlag, IsUnresolved,
                              RawVoucherNumber, RawChildName, ImportedByUserId, ImportedAt)
-                            VALUES (NULL, {0}, {1}, {2}, {3}, {4}, {5}, {6}, {7},
-                             '0', '0', {8}, '0', '0', {9}, {10}, {11}, '0', '0', 0, 1,
-                             {12}, {13}, {14}, {15})",
+                            VALUES (NULL,{0},{1},{2},{3},{4},{5},{6},0,
+                             '0','0',{7},'0','0',{8},{9},{10},'0','0',0,1,
+                             {11},{12},{13},{14})",
                             childId, session.InvoiceNumber,
                             importSession.ImportSessionId,
                             session.InvoiceStart.ToString("yyyy-MM-dd"),
                             session.InvoiceEnd.ToString("yyyy-MM-dd"),
                             session.PaymentDate?.ToString("yyyy-MM-dd"),
-                            row.Absences, session.ClosureDays, daysBilled,
+                            row.Absences, daysBilled,
                             row.MDExcels, row.Scholarship, row.PaymentTotal,
                             row.ScholarshipId, row.ChildNameMSDE,
                             importedByUserId,
@@ -229,18 +225,17 @@ public class ImportService
                     continue;
                 }
 
-                var invoice = new Invoice
+                _db.Invoices.Add(new Invoice
                 {
                     VoucherId = voucher!.VoucherId, ChildId = child!.ChildId,
                     InvoiceNumber = session.InvoiceNumber,
                     ImportSessionId = importSession.ImportSessionId,
                     InvoiceStart = session.InvoiceStart, InvoiceEnd = session.InvoiceEnd,
                     PaymentDate = session.PaymentDate,
-                    AbsenceDays = row.Absences, ClosureDays = session.ClosureDays,
+                    AbsenceDays = row.Absences, ClosureDays = 0,
                     DailyVORate = dailyVORate, DailyHHDCRate = dailyHHDCRate,
                     DaysBilled = daysBilled,
-                    VOExpectedTotal = voExpected,
-                    HHDCExpectedTotal = hhdcExpected,
+                    VOExpectedTotal = voExpected, HHDCExpectedTotal = hhdcExpected,
                     MDExcelsAmount = row.MDExcels, ScholarshipAmount = row.Scholarship,
                     PaymentTotal = row.PaymentTotal,
                     VODiscrepancy = row.PaymentTotal - voExpected,
@@ -248,8 +243,7 @@ public class ImportService
                     HasTrueUpFlag = false, IsUnresolved = false,
                     RawVoucherNumber = row.ScholarshipId, RawChildName = row.ChildNameMSDE,
                     ImportedByUserId = importedByUserId
-                };
-                _db.Invoices.Add(invoice);
+                });
                 await DbRetryService.ExecuteAsync(() => _db.SaveChangesAsync());
                 imported++;
             }
@@ -276,7 +270,8 @@ public class ImportService
             if (match.Child == null) continue;
             var voucher = await DbRetryService.ExecuteAsync(() =>
                 _db.Vouchers.AsNoTracking().FirstOrDefaultAsync(v =>
-                    v.VoucherNumber == row.ScholarshipNumber && v.ChildId == match.Child.ChildId));
+                    v.VoucherNumber == row.ScholarshipNumber
+                    && v.ChildId == match.Child.ChildId));
             if (voucher == null && match.MatchType == "Exact")
                 errors.Add($"Row {i + 1}: Voucher {row.ScholarshipNumber} does not " +
                            $"belong to {match.Child.FullName}.");
@@ -298,15 +293,16 @@ public class ImportService
                     t.TrueUpType == session.TrueUpType &&
                     t.Voucher!.VoucherNumber == row.ScholarshipNumber));
             if (exists)
-                dupes.Add($"Row {i + 1}: Voucher {row.ScholarshipNumber} / " +
-                          $"{row.APReconcilingMonth} / {row.FirstAPInvoice} ({row.ChildNameMSDE})");
+                dupes.Add($"Row {i + 1}: {row.ScholarshipNumber} / " +
+                          $"{row.APReconcilingMonth} ({row.ChildNameMSDE})");
         }
         return new DuplicateCheckResult(dupes);
     }
 
     // ── True-Up Import ────────────────────────────────────────────────────
     public async Task<ImportResult> ImportTrueUpsAsync(
-        List<TrueUpRow> rows, TrueUpImportSession session, int importedByUserId)
+        List<TrueUpRow> rows, TrueUpImportSession session,
+        int importedByUserId, Action<int, int>? progressCallback = null)
     {
         int imported = 0, unresolved = 0;
         var unresolvedDetails = new List<string>();
@@ -320,8 +316,10 @@ public class ImportService
         _db.ImportSessions.Add(importSession);
         await DbRetryService.ExecuteAsync(() => _db.SaveChangesAsync());
 
-        for (int i = 0; i < rows.Count; i++)
+        int total = rows.Count;
+        for (int i = 0; i < total; i++)
         {
+            progressCallback?.Invoke(i + 1, total);
             var row = rows[i];
             try
             {
@@ -330,7 +328,8 @@ public class ImportService
                 var voucher = child != null
                     ? await DbRetryService.ExecuteAsync(() =>
                         _db.Vouchers.AsNoTracking().FirstOrDefaultAsync(v =>
-                            v.VoucherNumber == row.ScholarshipNumber && v.ChildId == child.ChildId))
+                            v.VoucherNumber == row.ScholarshipNumber
+                            && v.ChildId == child.ChildId))
                     : null;
 
                 bool isNewVoucher = row.Reason.ToLower().Contains("new voucher");
@@ -338,7 +337,7 @@ public class ImportService
                 if (child == null || voucher == null)
                 {
                     unresolved++;
-                    unresolvedDetails.Add($"Voucher {row.ScholarshipNumber} ({row.ChildNameMSDE})");
+                    unresolvedDetails.Add($"{row.ScholarshipNumber} ({row.ChildNameMSDE})");
                     if (child != null) child.HasUnresolved = true;
                     _db.UnresolvedTrueUps.Add(new UnresolvedTrueUp
                     {
@@ -346,8 +345,10 @@ public class ImportService
                         RawVoucherNumber = row.ScholarshipNumber,
                         RawChildName = row.ChildNameMSDE,
                         TrueUpType = session.TrueUpType, Reason = row.Reason,
-                        FirstAPInvoiceNumber = row.FirstAPInvoice == "None" ? null : row.FirstAPInvoice,
-                        SecondAPInvoiceNumber = row.SecondAPInvoice == "None" ? null : row.SecondAPInvoice,
+                        FirstAPInvoiceNumber = row.FirstAPInvoice == "None"
+                            ? null : row.FirstAPInvoice,
+                        SecondAPInvoiceNumber = row.SecondAPInvoice == "None"
+                            ? null : row.SecondAPInvoice,
                         APReconcilingMonth = row.APReconcilingMonth,
                         AdjustDays = row.AdjustDays,
                         TrueUpAdjustAmount = row.TrueUpAdjustAmount,
@@ -358,12 +359,14 @@ public class ImportService
                     continue;
                 }
 
-                var invoiceRef = isNewVoucher ? null : (session.InvoiceNumber ?? row.FirstAPInvoice);
+                var invoiceRef = isNewVoucher
+                    ? null : (session.InvoiceNumber ?? row.FirstAPInvoice);
                 Invoice? invoice = null;
                 if (!string.IsNullOrEmpty(invoiceRef))
                     invoice = await DbRetryService.ExecuteAsync(() =>
                         _db.Invoices.AsNoTracking().FirstOrDefaultAsync(inv =>
-                            inv.InvoiceNumber == invoiceRef && inv.VoucherId == voucher.VoucherId));
+                            inv.InvoiceNumber == invoiceRef
+                            && inv.VoucherId == voucher.VoucherId));
 
                 _db.TrueUps.Add(new TrueUp
                 {
@@ -372,10 +375,13 @@ public class ImportService
                     InvoiceId = invoice?.InvoiceId,
                     InvoiceNumber = isNewVoucher ? null : invoiceRef,
                     TrueUpType = session.TrueUpType, Reason = row.Reason,
-                    FirstAPInvoiceNumber = row.FirstAPInvoice == "None" ? null : row.FirstAPInvoice,
-                    SecondAPInvoiceNumber = row.SecondAPInvoice == "None" ? null : row.SecondAPInvoice,
+                    FirstAPInvoiceNumber = row.FirstAPInvoice == "None"
+                        ? null : row.FirstAPInvoice,
+                    SecondAPInvoiceNumber = row.SecondAPInvoice == "None"
+                        ? null : row.SecondAPInvoice,
                     APReconcilingMonth = row.APReconcilingMonth,
-                    AdjustDays = row.AdjustDays, TrueUpAdjustAmount = row.TrueUpAdjustAmount,
+                    AdjustDays = row.AdjustDays,
+                    TrueUpAdjustAmount = row.TrueUpAdjustAmount,
                     APAmount = row.APAmount, ImportedByUserId = importedByUserId
                 });
                 await DbRetryService.ExecuteAsync(() => _db.SaveChangesAsync());
@@ -388,6 +394,6 @@ public class ImportService
         importSession.RowsUnresolved = unresolved;
         await DbRetryService.ExecuteAsync(() => _db.SaveChangesAsync());
         return new ImportResult(imported, 0, unresolved,
-            new List<string>(), unresolvedDetails, errors);
+            [], unresolvedDetails, errors);
     }
 }

@@ -1,8 +1,189 @@
 <UserControl x:Class="HHDCTracker.Views.Dashboard.DashboardView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Border Padding="32">
-        <TextBlock Text="DashboardView" FontSize="22" FontWeight="Bold"
-                   FontFamily="Segoe UI" Foreground="#1A5276"/>
-    </Border>
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Background="#F2F3F4">
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource TealDarkBrush}" Padding="24,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock x:Name="LocationHeader" Foreground="White"
+                               FontSize="18" FontWeight="Bold" FontFamily="Segoe UI"/>
+                    <TextBlock x:Name="DateHeader" Foreground="#A9CCE3"
+                               FontSize="12" FontFamily="Segoe UI" Margin="0,4,0,0"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" HorizontalAlignment="Right">
+                    <Button Content="🔄  Refresh" Style="{StaticResource PrimaryButton}"
+                            Padding="14,8" Click="Refresh_Click"/>
+                    <TextBlock x:Name="LastRefreshText" Foreground="#A9CCE3"
+                               FontSize="10" FontFamily="Segoe UI"
+                               HorizontalAlignment="Right" Margin="0,4,0,0"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="24,20">
+
+                <!-- Scary number row -->
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Total owed — the scary number -->
+                    <Border Grid.Column="0" Style="{StaticResource Card}"
+                            Background="#FADBD8">
+                        <StackPanel>
+                            <TextBlock Text="💸  TOTAL OWED" FontSize="11"
+                                       FontWeight="Bold" Foreground="#922B21"
+                                       FontFamily="Segoe UI" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="TotalOwedText" FontSize="28"
+                                       FontWeight="Bold" Foreground="#922B21"
+                                       FontFamily="Segoe UI"/>
+                            <TextBlock Text="underpayments + parent liability"
+                                       FontSize="10" Foreground="#C0392B"
+                                       FontFamily="Segoe UI" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Total open problems -->
+                    <Border Grid.Column="2" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="⚠️  OPEN PROBLEMS" FontSize="11"
+                                       FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}"
+                                       FontFamily="Segoe UI" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="TotalProblemsText" FontSize="28"
+                                       FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}"
+                                       FontFamily="Segoe UI"/>
+                            <TextBlock Text="across all categories"
+                                       FontSize="10" Foreground="#888"
+                                       FontFamily="Segoe UI" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Underpayments -->
+                    <Border Grid.Column="4" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="📉  UNDERPAYMENTS" FontSize="11"
+                                       FontWeight="Bold" Foreground="{StaticResource RedAlertBrush}"
+                                       FontFamily="Segoe UI" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="UnderpayText" FontSize="28"
+                                       FontWeight="Bold" FontFamily="Segoe UI"
+                                       Foreground="{StaticResource RedAlertBrush}"/>
+                            <TextBlock Text="open invoices"
+                                       FontSize="10" Foreground="#888"
+                                       FontFamily="Segoe UI" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Coverage gaps -->
+                    <Border Grid.Column="6" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="🔓  COVERAGE GAPS" FontSize="11"
+                                       FontWeight="Bold" Foreground="{StaticResource PurpleMidBrush}"
+                                       FontFamily="Segoe UI" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="CoverageGapText" FontSize="28"
+                                       FontWeight="Bold" FontFamily="Segoe UI"
+                                       Foreground="{StaticResource PurpleMidBrush}"/>
+                            <TextBlock Text="uninsured periods"
+                                       FontSize="10" Foreground="#888"
+                                       FontFamily="Segoe UI" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Second stats row -->
+                <Grid Margin="0,0,0,16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="📊  PAYMENT GAPS" FontSize="11"
+                                       FontWeight="Bold" Foreground="{StaticResource AccentOrangeBrush}"
+                                       FontFamily="Segoe UI" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="PaymentGapText" FontSize="28"
+                                       FontWeight="Bold" FontFamily="Segoe UI"
+                                       Foreground="{StaticResource AccentOrangeBrush}"/>
+                            <TextBlock Text="gaps &gt;20 business days between invoices"
+                                       FontSize="10" Foreground="#888"
+                                       FontFamily="Segoe UI" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+
+                    <Border Grid.Column="2" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Text="📉  LOW PAYMENTS" FontSize="11"
+                                       FontWeight="Bold" Foreground="{StaticResource YellowWarnBrush}"
+                                       FontFamily="Segoe UI" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="LowPayText" FontSize="28"
+                                       FontWeight="Bold" FontFamily="Segoe UI"
+                                       Foreground="{StaticResource YellowWarnBrush}"/>
+                            <TextBlock Text="invoices below 95% of median"
+                                       FontSize="10" Foreground="#888"
+                                       FontFamily="Segoe UI" Margin="0,4,0,0"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Expiring vouchers -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Text="📅  Vouchers Expiring Within 30 Days"
+                                   Style="{StaticResource SectionHeader}"/>
+                        <DataGrid x:Name="ExpiringGrid" AutoGenerateColumns="False"
+                                  IsReadOnly="True" GridLinesVisibility="Horizontal"
+                                  HeadersVisibility="Column" Background="White"
+                                  AlternatingRowBackground="#FEF9E7"
+                                  BorderThickness="0" FontFamily="Segoe UI" FontSize="12"
+                                  MaxHeight="300">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Child"
+                                                   Binding="{Binding Child.FullName}" Width="180"/>
+                                <DataGridTextColumn Header="Voucher #"
+                                                   Binding="{Binding VoucherNumber}" Width="120"/>
+                                <DataGridTextColumn Header="Expires"
+                                                   Binding="{Binding PeriodEnd, StringFormat='MM/dd/yyyy'}"
+                                                   Width="100"/>
+                                <DataGridTextColumn Header="Days Left"
+                                                   Binding="{Binding DaysUntilExpiry}" Width="90"/>
+                                <DataGridTextColumn Header="Rate/Wk"
+                                                   Binding="{Binding VOPromisedWeekly, StringFormat='${0:N2}'}"
+                                                   Width="90"/>
+                            </DataGrid.Columns>
+                            <DataGrid.RowStyle>
+                                <Style TargetType="DataGridRow">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding IsUrgent}" Value="True">
+                                            <Setter Property="Background" Value="#FADBD8"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </DataGrid.RowStyle>
+                        </DataGrid>
+                        <TextBlock x:Name="NoExpiringText"
+                                   Text="✓  No vouchers expiring in the next 30 days."
+                                   Foreground="{StaticResource GreenOkBrush}"
+                                   FontFamily="Segoe UI" FontSize="13"
+                                   Visibility="Collapsed" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
 </UserControl>

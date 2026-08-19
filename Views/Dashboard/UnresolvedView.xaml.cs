@@ -169,22 +169,31 @@ public partial class UnresolvedView : UserControl
             return;
         }
 
-        // Recalculate stored fields
+        // Recalculate stored fields using confirmed MSDE formula
         var dailyVO = voucher.GetDailyVORateForDate(invoice.InvoiceStart);
         var dailyHHDC = voucher.GetDailyHHDCRateForDate(invoice.InvoiceStart);
         int daysBilled = Helpers.NetworkDaysHelper.Calculate(
-            invoice.InvoiceStart, invoice.InvoiceEnd, invoice.ClosureDays);
+            invoice.InvoiceStart, invoice.InvoiceEnd);
+
+        decimal voExpected = ImportService.CalculateVOExpected(
+            voucher.VOPromisedWeekly,
+            invoice.InvoiceStart, invoice.InvoiceEnd,
+            voucher.PeriodStart, voucher.TerminationDate ?? voucher.PeriodEnd);
+
+        decimal hhdcExpected = ImportService.CalculateVOExpected(
+            voucher.HHDCChargeWeekly,
+            invoice.InvoiceStart, invoice.InvoiceEnd,
+            voucher.PeriodStart, voucher.TerminationDate ?? voucher.PeriodEnd);
 
         invoice.ChildId = child.ChildId;
         invoice.VoucherId = voucher.VoucherId;
         invoice.DailyVORate = dailyVO;
         invoice.DailyHHDCRate = dailyHHDC;
         invoice.DaysBilled = daysBilled;
-        invoice.VOExpectedTotal = daysBilled * dailyVO;
-        invoice.HHDCExpectedTotal = daysBilled * dailyHHDC;
-        invoice.VODiscrepancy = invoice.PaymentTotal - (daysBilled * dailyVO);
-        invoice.HHDCSurplus = (daysBilled * dailyHHDC) - invoice.PaymentTotal;
-        invoice.IsUnresolved = false;
+        invoice.VOExpectedTotal = voExpected;
+        invoice.HHDCExpectedTotal = hhdcExpected;
+        invoice.VODiscrepancy = invoice.PaymentTotal - voExpected;
+        invoice.HHDCSurplus = hhdcExpected - invoice.PaymentTotal;
 
         // Clear HasUnresolved if no more unresolved entries for this child
         var hasMore = await DbRetryService.ExecuteAsync(() =>

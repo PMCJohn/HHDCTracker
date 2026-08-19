@@ -10,9 +10,21 @@ public partial class TrueUpImportView : UserControl
 {
     private DispatcherTimer? _notifTimer;
 
+    // Session-persistent state
+    private static string _savedInvoiceNum = "";
+    private static string _savedPasteData = "";
+    private static int _savedTypeIndex = 0;
+
     public TrueUpImportView()
     {
         InitializeComponent();
+        TxtInvoiceNum.Text = _savedInvoiceNum;
+        PasteBox.Text = _savedPasteData;
+        CboTrueUpType.SelectedIndex = _savedTypeIndex;
+
+        TxtInvoiceNum.TextChanged += (_, _) => _savedInvoiceNum = TxtInvoiceNum.Text;
+        PasteBox.TextChanged += (_, _) => _savedPasteData = PasteBox.Text;
+        CboTrueUpType.SelectionChanged += (_, _) => _savedTypeIndex = CboTrueUpType.SelectedIndex;
     }
 
     private List<ImportService.TrueUpRow> ParsePasteData()
@@ -20,22 +32,13 @@ public partial class TrueUpImportView : UserControl
         var rows = new List<ImportService.TrueUpRow>();
         var lines = PasteBox.Text
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Select(l => l.Trim())
-            .Where(l => !string.IsNullOrEmpty(l))
-            .ToList();
-
-        // Skip header row if present
+            .Select(l => l.Trim()).Where(l => !string.IsNullOrEmpty(l)).ToList();
         if (lines.Count > 0 && lines[0].ToLower().Contains("reason"))
             lines = lines.Skip(1).ToList();
-
         foreach (var line in lines)
         {
             var cols = line.Split('\t');
             if (cols.Length < 9) continue;
-
-            // Col map: 0=Reason, 1=ScholarshipNumber, 2=ChildName,
-            //          3=1stAPInvoice, 4=2ndAPInvoice, 5=APMonth,
-            //          6=APAmount, 7=AdjustDays, 8=TrueUpAdjustAmount
             rows.Add(new ImportService.TrueUpRow(
                 Reason: cols[0].Trim(),
                 ScholarshipNumber: cols[1].Trim(),
@@ -55,87 +58,84 @@ public partial class TrueUpImportView : UserControl
     {
         var tuType = (CboTrueUpType.SelectedItem as ComboBoxItem)?.Content?.ToString()
                      ?? "Additional Amounts Reconciliation";
-        var invoiceNum = TxtInvoiceNum.Text.Trim();
-
         var rows = ParsePasteData();
         if (rows.Count == 0)
         {
-            MessageBox.Show("No data found in the paste area. " +
-                "Please paste your MSDE true-up data and try again.", "No Data",
+            MessageBox.Show("No data found in the paste area.", "No Data",
                 MessageBoxButton.OK, MessageBoxImage.Information);
             return;
         }
 
         var session = new ImportService.TrueUpImportSession(
-            string.IsNullOrEmpty(invoiceNum) ? null : invoiceNum, tuType);
-
+            string.IsNullOrEmpty(TxtInvoiceNum.Text.Trim()) ? null : TxtInvoiceNum.Text.Trim(),
+            tuType);
         var svc = new ImportService(App.Db!, App.CurrentLocation!.LocationId);
 
-        // Step 1 — Name validation
-        StatusText.Text = "Validating...";
-        StatusText.Visibility = Visibility.Visible;
-
+        SetImportingState(true, "Validating...", 0, rows.Count);
         var nameErrors = await svc.ValidateTrueUpNamesAsync(rows);
         if (nameErrors.Any())
         {
-            StatusText.Visibility = Visibility.Collapsed;
+            SetImportingState(false);
             MessageBox.Show(
-                $"Import rejected — {nameErrors.Count} name mismatch(es):\n\n" +
+                $"Import rejected — {nameErrors.Count} mismatch(es):\n\n" +
                 string.Join("\n", nameErrors),
                 "Validation Failed", MessageBoxButton.OK, MessageBoxImage.Error);
             return;
         }
 
-        // Step 2 — Duplicate check
         var dupeCheck = await svc.CheckTrueUpDuplicatesAsync(rows, session);
         if (dupeCheck.Duplicates.Any())
         {
-            StatusText.Visibility = Visibility.Collapsed;
+            SetImportingState(false);
             var dlg = new DuplicateConfirmDialog(dupeCheck.Duplicates, "true-up");
             dlg.Owner = Window.GetWindow(this);
             if (dlg.ShowDialog() != true) return;
+            SetImportingState(true, "Importing...", 0, rows.Count);
         }
 
-        // Step 3 — Import
-        StatusText.Text = "Importing...";
         var result = await svc.ImportTrueUpsAsync(rows, session,
-            App.CurrentUser!.UserId);
+            App.CurrentUser!.UserId,
+            (current, total) => Dispatcher.Invoke(() =>
+                SetImportingState(true, $"Importing row {current} of {total}...",
+                    current, total)));
 
-        // Clear on success
-        PasteBox.Clear();
-        TxtInvoiceNum.Clear();
-        CboTrueUpType.SelectedIndex = 0;
-        StatusText.Visibility = Visibility.Collapsed;
+        SetImportingState(false);
+        PasteBox.Clear(); TxtInvoiceNum.Clear(); CboTrueUpType.SelectedIndex = 0;
+        _savedInvoiceNum = _savedPasteData = ""; _savedTypeIndex = 0;
 
         ShowNotification(result);
+    }
+
+    private void SetImportingState(bool importing, string label = "",
+        int current = 0, int total = 1)
+    {
+        BtnImport.IsEnabled = !importing;
+        ProgressPanel.Visibility = importing ? Visibility.Visible : Visibility.Collapsed;
+        if (!importing) return;
+        ProgressLabel.Text = label;
+        double pct = total > 0 ? (double)current / total * 100 : 0;
+        ImportProgressBar.Value = pct;
+        ProgressPct.Text = $"{pct:N0}%";
     }
 
     private void ShowNotification(ImportService.ImportResult result)
     {
         bool hasIssues = result.RowsUnresolved > 0 || result.Errors.Any();
-
         NotificationBanner.Background = hasIssues
             ? new SolidColorBrush(Color.FromRgb(253, 235, 208))
             : new SolidColorBrush(Color.FromRgb(213, 245, 227));
-
-        var msg = $"✓  {result.RowsImported} true-up row(s) imported successfully.";
+        var msg = $"✓  {result.RowsImported} true-up row(s) imported.";
         if (result.RowsUnresolved > 0)
-            msg += $"  ·  ⚠ {result.RowsUnresolved} unresolved voucher(s) — " +
-                   "please review flagged entries on the child's profile.";
+            msg += $"  ·  ⚠ {result.RowsUnresolved} unresolved — review the Unresolved page.";
         if (result.Errors.Any())
-            msg += $"  ·  {result.Errors.Count} error(s): " +
-                   string.Join(", ", result.Errors);
-
+            msg += $"  ·  {result.Errors.Count} error(s).";
         NotificationText.Text = msg;
         NotificationText.Foreground = hasIssues
             ? new SolidColorBrush(Color.FromRgb(126, 97, 6))
             : new SolidColorBrush(Color.FromRgb(30, 132, 73));
-
         NotificationBanner.Visibility = Visibility.Visible;
-
         _notifTimer?.Stop();
-        _notifTimer = new DispatcherTimer
-            { Interval = TimeSpan.FromSeconds(10) };
+        _notifTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
         _notifTimer.Tick += (_, _) =>
         {
             NotificationBanner.Visibility = Visibility.Collapsed;
@@ -152,9 +152,8 @@ public partial class TrueUpImportView : UserControl
 
     private void Clear_Click(object sender, RoutedEventArgs e)
     {
-        PasteBox.Clear();
-        TxtInvoiceNum.Clear();
-        CboTrueUpType.SelectedIndex = 0;
+        PasteBox.Clear(); TxtInvoiceNum.Clear(); CboTrueUpType.SelectedIndex = 0;
+        _savedInvoiceNum = _savedPasteData = ""; _savedTypeIndex = 0;
         NotificationBanner.Visibility = Visibility.Collapsed;
     }
 }

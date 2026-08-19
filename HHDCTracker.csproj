@@ -9,14 +9,14 @@
     <RootNamespace>HHDCTracker</RootNamespace>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <ApplicationIcon>app.ico</ApplicationIcon>
-  </PropertyGroup>
-
   <ItemGroup>
     <Resource Include="app.ico"/>
     <Resource Include="app_256.png"/>
   </ItemGroup>
+
+  <PropertyGroup>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+  </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="8.0.0" />

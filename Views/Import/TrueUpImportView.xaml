@@ -3,20 +3,17 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              Background="#F2F3F4">
     <DockPanel>
-
-        <!-- ── HEADER ─────────────────────────────────────────── -->
         <Border DockPanel.Dock="Top"
                 Background="{StaticResource PurpleDarkBrush}" Padding="24,16">
             <StackPanel>
                 <TextBlock Text="Import MSDE True-Ups" Foreground="White"
                            FontSize="18" FontWeight="Bold" FontFamily="Segoe UI"/>
-                <TextBlock Text="Select the true-up type, optionally enter an invoice reference, paste your MSDE data, then click Import."
+                <TextBlock Text="Select the true-up type, paste your MSDE data, then click Import."
                            Foreground="#D7BDE2" FontSize="12" FontFamily="Segoe UI"
                            Margin="0,4,0,0"/>
             </StackPanel>
         </Border>
 
-        <!-- ── NOTIFICATION BANNER ────────────────────────────── -->
         <Border x:Name="NotificationBanner" DockPanel.Dock="Top"
                 Padding="16,10" Visibility="Collapsed">
             <Grid>
@@ -25,21 +22,18 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock x:Name="NotificationText" Grid.Column="0"
-                           FontFamily="Segoe UI" FontSize="13"
-                           FontWeight="SemiBold" TextWrapping="Wrap"
-                           VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Content="✕"
-                        Background="Transparent" BorderThickness="0"
-                        FontSize="14" Cursor="Hand" Padding="8,0"
-                        VerticalAlignment="Center"
+                           FontFamily="Segoe UI" FontSize="13" FontWeight="SemiBold"
+                           TextWrapping="Wrap" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Content="✕" Background="Transparent"
+                        BorderThickness="0" FontSize="14" Cursor="Hand"
+                        Padding="8,0" VerticalAlignment="Center"
                         Click="CloseNotification_Click"/>
             </Grid>
         </Border>
 
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="24,16">
-
-                <!-- ── TRUE-UP SUB-TABLE ──────────────────────── -->
+                <!-- Sub-table -->
                 <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                     <StackPanel>
                         <TextBlock Style="{StaticResource SectionHeader}"
@@ -50,10 +44,9 @@
                                 <ColumnDefinition Width="16"/>
                                 <ColumnDefinition Width="220"/>
                             </Grid.ColumnDefinitions>
-
                             <StackPanel Grid.Column="0">
                                 <TextBlock Style="{StaticResource FieldLabel}"
-                                           Text="Invoice # (optional — leave blank for New Voucher type)"/>
+                                           Text="Invoice # (optional — leave blank for New Voucher)"/>
                                 <TextBox x:Name="TxtInvoiceNum" Padding="8,6"
                                          FontFamily="Segoe UI" FontSize="13"
                                          BorderBrush="#8E44AD" BorderThickness="1"/>
@@ -61,9 +54,8 @@
                             <StackPanel Grid.Column="2">
                                 <TextBlock Style="{StaticResource FieldLabel}"
                                            Text="True-Up Type"/>
-                                <ComboBox x:Name="CboTrueUpType"
-                                          FontFamily="Segoe UI" FontSize="13" Height="34"
-                                          BorderBrush="#8E44AD">
+                                <ComboBox x:Name="CboTrueUpType" FontFamily="Segoe UI"
+                                          FontSize="13" Height="34" BorderBrush="#8E44AD">
                                     <ComboBoxItem Content="Additional Amounts Reconciliation"
                                                   IsSelected="True"/>
                                     <ComboBoxItem Content="Adjustment Amounts Reconciliation"/>
@@ -73,31 +65,24 @@
                     </StackPanel>
                 </Border>
 
-                <!-- ── PASTE AREA ─────────────────────────────── -->
+                <!-- Paste area -->
                 <Border Style="{StaticResource Card}" Margin="0,0,0,16">
                     <DockPanel>
-                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
-                                    Margin="0,0,0,12">
+                        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12">
                             <TextBlock Style="{StaticResource SectionHeader}"
                                        Text="MSDE True-Up Data" Margin="0"/>
-                            <TextBlock Text="  — paste directly from MSDE portal below"
-                                       FontSize="12" Foreground="#888"
-                                       FontFamily="Segoe UI" VerticalAlignment="Bottom"
-                                       Margin="0,0,0,8"/>
+                            <TextBlock Text="  — paste directly from MSDE portal"
+                                       FontSize="12" Foreground="#888" FontFamily="Segoe UI"
+                                       VerticalAlignment="Bottom" Margin="0,0,0,8"/>
                         </StackPanel>
-
-                        <!-- Column headers reference -->
                         <Border DockPanel.Dock="Top" Background="{StaticResource PurpleLightBrush}"
                                 CornerRadius="4" Padding="8,6" Margin="0,0,0,8">
                             <TextBlock FontFamily="Consolas" FontSize="10" Foreground="#6C3483"
                                        Text="Reason | Scholarship Number | Child Name | 1st AP Invoice # | 2nd AP Invoice # | AP Reconciling Month | AP Amount | # Adjust Days | True Up Adjust Amount"/>
                         </Border>
-
-                        <TextBox x:Name="PasteBox"
-                                 DockPanel.Dock="Top"
+                        <TextBox x:Name="PasteBox" DockPanel.Dock="Top"
                                  AcceptsReturn="True" AcceptsTab="True"
-                                 FontFamily="Consolas" FontSize="12"
-                                 Height="280" Padding="8"
+                                 FontFamily="Consolas" FontSize="12" Height="280" Padding="8"
                                  BorderBrush="#CCCCCC" BorderThickness="1"
                                  VerticalScrollBarVisibility="Auto"
                                  HorizontalScrollBarVisibility="Auto"
@@ -105,21 +90,35 @@
                     </DockPanel>
                 </Border>
 
-                <!-- ── IMPORT BUTTON ──────────────────────────── -->
-                <StackPanel Orientation="Horizontal">
-                    <Button Content="▶  Import True-Ups"
-                            Style="{StaticResource PurpleButton}"
-                            Padding="20,10" FontSize="14"
-                            Click="Import_Click"/>
-                    <Button Content="Clear" Padding="14,10" FontSize="13"
-                            Margin="12,0,0,0" FontFamily="Segoe UI"
-                            Click="Clear_Click"/>
-                    <TextBlock x:Name="StatusText" Margin="16,0,0,0"
-                               VerticalAlignment="Center" FontFamily="Segoe UI"
-                               FontSize="12" Foreground="#888"
-                               Visibility="Collapsed"/>
+                <!-- Import button + progress -->
+                <StackPanel>
+                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                        <Button x:Name="BtnImport" Content="▶  Import True-Ups"
+                                Style="{StaticResource PurpleButton}"
+                                Padding="20,10" FontSize="14" Click="Import_Click"/>
+                        <Button Content="Clear" Padding="14,10" FontSize="13"
+                                Margin="12,0,0,0" FontFamily="Segoe UI" Click="Clear_Click"/>
+                    </StackPanel>
+                    <Border x:Name="ProgressPanel" Visibility="Collapsed"
+                            Background="White" CornerRadius="4"
+                            BorderBrush="#E0E0E0" BorderThickness="1"
+                            Padding="12,10" MaxWidth="420" HorizontalAlignment="Left">
+                        <StackPanel>
+                            <TextBlock x:Name="ProgressLabel" FontFamily="Segoe UI"
+                                       FontSize="12" Foreground="#555" Margin="0,0,0,6"/>
+                            <Grid>
+                                <ProgressBar x:Name="ImportProgressBar" Height="18"
+                                             Minimum="0" Maximum="100"
+                                             Foreground="{StaticResource PurpleMidBrush}"
+                                             Background="#EEE" BorderThickness="0"/>
+                                <TextBlock x:Name="ProgressPct"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"
+                                           FontSize="10" FontWeight="Bold"
+                                           Foreground="White" FontFamily="Segoe UI"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
-
             </StackPanel>
         </ScrollViewer>
     </DockPanel>
